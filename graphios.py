@@ -165,7 +165,7 @@ def convert_pickle(carbon_list):
     """
     pickle_list = []
     for metric in carbon_list:
-        path, value, timestamp = re.split("\s+", metric.strip())
+        path, value, timestamp = metric.strip().rsplit(' ', 2)
         metric_tuple = (path, (timestamp, value))
         pickle_list.append(metric_tuple)
 

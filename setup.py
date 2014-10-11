@@ -131,7 +131,7 @@ def backup_file(file_name):
     """
     my_time = strftime('%d-%m-%y')
     new_file_name = "%s.%s" % (file_name, my_time)
-    print("backing up file:%s to %s.%s" % (file_name, new_file_name))
+    print("backing up file:%s to %s" % (file_name, new_file_name))
     try:
         copy(file_name, new_file_name)
         return True

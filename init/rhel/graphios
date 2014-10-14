@@ -1,6 +1,6 @@
 #! /bin/bash
 #
-# simple init script for graphios
+# graphios      start the graphios script
 #
 #
 # chkconfig: 345 99 01
@@ -17,9 +17,9 @@
 # Check that networking is up.
 [ "$NETWORKING" = "no" ] && exit 0
 
-prog="/opt/nagios/bin/graphios.py"
+prog="/usr/bin/graphios.py"
 # or use the command line options:
-#prog="/opt/nagios/bin/graphios.py --log-file=/dir/mylog.log --spool-directory=/dir/my/sool"
+#prog="/usr/bin/graphios --log-file=/dir/mylog.log --spool-directory=/dir/my/sool"
 GRAPHIOS_USER="nagios"
 RETVAL=0
 

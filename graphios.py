@@ -60,8 +60,8 @@ log_max_size = 25165824         # 24 MB
 # is passed as a command line argument we will use that instead.
 config_file = ''
 
-# change me to False before releasing
-debug = True
+# This is overridden via config file
+debug = False
 
 # config dictionary
 cfg = {}
@@ -152,7 +152,13 @@ def read_config(config_file):
     reads the config file
     """
     if config_file == '':
-        config_file = "%s/graphios.cfg" % sys.path[0]
+        # check same dir as graphios binary
+        my_file = "%s/graphios.cfg" % sys.path[0]
+        if os.path.isfile(my_file):
+            config_file = my_file
+        else:
+            # check /etc/graphios/graphios.cfg
+            config_file = "/etc/graphios/graphios.cfg"
     config = SafeConfigParser()
     # The logger won't be initialized yet, so we use print_debug
     if os.path.isfile(config_file):
@@ -241,12 +247,13 @@ def configure():
     log.addHandler(log_handler)
 
     if "debug" in cfg and cfg["debug"] is True:
-        print("adding streamhandler")
+        log.debug("adding streamhandler")
         log.setLevel(logging.DEBUG)
         log.addHandler(logging.StreamHandler())
         debug = True
     else:
         log.setLevel(logging.INFO)
+        debug = False
 
 
 def process_log(file_name):
@@ -447,17 +454,17 @@ def main():
 
 
 if __name__ == '__main__':
-    global cfg
     if len(sys.argv) > 1:
         (options, args) = parser.parse_args()
-        if options.config:
-            cfg = read_config(options.config)
+        # print options
+        if options.config_file:
+            cfg = read_config(options.config_file)
         else:
             cfg = verify_options(options)
     else:
         cfg = read_config(config_file)
     verify_config(cfg)
     configure()
-    print cfg  # fix me, comment me out before release
+    # print cfg
     init_backends()
     main()

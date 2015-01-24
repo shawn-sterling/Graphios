@@ -315,16 +315,14 @@ class carbon(object):
         else:
             post = ""
         if self.replace_hostname:
-            hostname = m.HOSTNAME.replace('.', self.replacement_character)
-        else:
-            hostname = m.HOSTNAME
+            m.HOSTNAME = m.HOSTNAME.replace('.', self.replacement_character)
         if self.use_service_desc:
-            # we want: (prefix.)hostname.service_desc(.postfix).perfdata
+            # we want: (prefix.)m.HOSTNAME.service_desc(.postfix).perfdata
             service_desc = self.fix_string(m.SERVICEDESC)
-            path = "%s%s.%s%s.%s" % (pre, hostname, service_desc, post,
+            path = "%s%s.%s%s.%s" % (pre, m.HOSTNAME, service_desc, post,
                                      m.LABEL)
         else:
-            path = "%s%s%s.%s" % (pre, hostname, post, m.LABEL)
+            path = "%s%s%s.%s" % (pre, m.HOSTNAME, post, m.LABEL)
         path = re.sub(r"\.$", '', path)  # fix paths that end in dot
         path = re.sub(r"\.\.", '.', path)  # fix paths with double dots
         path = self.fix_string(path)

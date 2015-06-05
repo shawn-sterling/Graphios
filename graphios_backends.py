@@ -312,17 +312,19 @@ class carbon(object):
         """
         Builds a carbon metric
         """
-        if m.GRAPHITEPREFIX != "":
+        if m.GRAPHITEPLUGIN:
+            return m.PATH
+
+        path = ""
+        pre = ""
+        post = ""
+
+        if m.GRAPHITEPREFIX:
             pre = "%s." % m.GRAPHITEPREFIX
-        else:
-            pre = ""
-        if m.GRAPHITEPOSTFIX != "":
+
+        if m.GRAPHITEPOSTFIX:
             post = ".%s" % m.GRAPHITEPOSTFIX
-        else:
-            post = ""
-        # if self.replace_hostname:
-        #     hostname = m.HOSTNAME.replace('.', self.replacement_character)
-        # else:
+
         hostname = m.HOSTNAME
         if self.use_service_desc:
             # we want: (prefix.)hostname.service_desc(.postfix).perfdata
@@ -331,6 +333,7 @@ class carbon(object):
                                      m.LABEL)
         else:
             path = "%s%s%s.%s" % (pre, hostname, post, m.LABEL)
+
         path = re.sub(r"\.$", '', path)  # fix paths that end in dot
         path = re.sub(r"\.\.", '.', path)  # fix paths with double dots
         path = self.fix_string(path)

@@ -38,6 +38,7 @@ from ConfigParser import SafeConfigParser
 from optparse import OptionParser
 import copy
 import graphios_backends as backends
+import imp
 import logging
 import logging.handlers
 import os
@@ -126,6 +127,7 @@ class GraphiosMetric(object):
         self.SERVICESTATE = ''          # current state afa nagios is concerned
         self.SERVICESTATETYPE = ''      # HARD|SOFT
         self.GRAPHITEPREFIX = ''        # graphios prefix
+        self.GRAPHITEPLUGIN = ''        # graphios plugin path
         self.GRAPHITEPOSTFIX = ''       # graphios suffix
         self.VALID = False              # if this metric is valid
 
@@ -348,6 +350,20 @@ def process_log(file_name):
         if mobj:
             # break out the metric object into one object per perfdata metric
             # log.debug('perfdata:%s' % mobj.PERFDATA)
+            # SERVICEPERFDATA::time=0.001402s;;;0.000000 size=11783B;;;0
+
+            if mobj.GRAPHITEPLUGIN:
+                module = try_load(mobj.GRAPHITEPLUGIN)
+                carbon_metrics = module.get_metrics(mobj.PERFDATA, mobj)
+
+                for pair in carbon_metrics:
+                    nobj = copy.copy(mobj)
+                    nobj.PATH = pair[0]
+                    nobj.VALUE = pair[1]
+                    processed_objects.append(nobj)
+
+                continue
+
             for metric in mobj.PERFDATA.split():
                 try:
                     nobj = copy.copy(mobj)
@@ -363,6 +379,28 @@ def process_log(file_name):
                     continue
     return processed_objects
 
+def try_load(path):
+    """
+        return the module given by path, load if not loaded
+    """
+    base, name = os.path.split(path)
+
+    try:
+        return sys.modules[name]
+    except KeyError:
+        pass
+
+    # If any of the following calls raises an exception,
+    # there's a problem we can't handle -- let the caller handle it.
+
+    fp, pathname, description = imp.find_module(name, [base] + sys.path)
+
+    try:
+        return imp.load_module(name, fp, pathname, description)
+    finally:
+        # Since we may exit via an exception, close fp explicitly.
+        if fp:
+            fp.close()
 
 def get_mobj(nag_array):
     """
@@ -378,14 +416,17 @@ def get_mobj(nag_array):
             log.warn("could not split value %s, dropping metric" % var)
             return False
 
-        value = re.sub("/", cfg["replacement_character"], value)
+        replaced = re.sub("/", cfg["replacement_character"], value)
+
         if re.search("PERFDATA", var_name):
-            mobj.PERFDATA = value
-        elif re.search("^\$_", value):
+            mobj.PERFDATA = replaced
+        elif re.search("^\$_", replaced):
             continue
+        elif re.search("PLUGIN", var_name):
+            mobj.GRAPHITEPLUGIN = value
         else:
-            value = re.sub("\s", "", value)
-            setattr(mobj, var_name, value)
+            setattr(mobj, var_name, replaced)
+
     mobj.validate()
     if mobj.VALID is True:
         return mobj

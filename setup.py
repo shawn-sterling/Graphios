@@ -91,7 +91,7 @@ def _post_install():
     """
     tries to find the nagios.cfg and insert graphios perf commands/cfg
     """
-    lookin = ['/etc/nagios/', '/opt/nagios/', '/usr/local/nagios',
+    lookin = ['/etc/nagios3/','/etc/nagios/', '/opt/nagios/', '/usr/local/nagios',
               '/usr/nagios']
     nag_cfg = find_nagios_cfg(lookin)
     if nag_cfg is None:

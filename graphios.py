@@ -384,6 +384,7 @@ def try_load(path):
         return the module given by path, load if not loaded
     """
     base, name = os.path.split(path)
+    name, ext = os.path.splitext(name)
 
     try:
         return sys.modules[name]

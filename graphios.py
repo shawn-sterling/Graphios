@@ -379,6 +379,7 @@ def process_log(file_name):
                     continue
     return processed_objects
 
+
 def try_load(path):
     """
         return the module given by path, load if not loaded
@@ -398,10 +399,16 @@ def try_load(path):
 
     try:
         return imp.load_module(name, fp, pathname, description)
+    except (IOError, OSError, Exception) as e:
+        print "Exception '%s' loading plugin: %s" % (e, path)
+        print "Check if dir exists, or file permissions."
+        print "Exiting."
+        exit(1)
     finally:
         # Since we may exit via an exception, close fp explicitly.
         if fp:
             fp.close()
+
 
 def get_mobj(nag_array):
     """

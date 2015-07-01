@@ -127,7 +127,6 @@ class GraphiosMetric(object):
         self.SERVICESTATE = ''          # current state afa nagios is concerned
         self.SERVICESTATETYPE = ''      # HARD|SOFT
         self.GRAPHITEPREFIX = ''        # graphios prefix
-        self.GRAPHITEPLUGIN = ''        # graphios plugin path
         self.GRAPHITEPOSTFIX = ''       # graphios suffix
         self.VALID = False              # if this metric is valid
 
@@ -218,7 +217,8 @@ def verify_config(config_dict):
     global spool_directory
     ensure_list = ['replacement_character', 'log_file', 'log_max_size',
                    'log_level', 'sleep_time', 'sleep_max', 'test_mode',
-                   'reverse_hostname', 'replace_hostname']
+                   'reverse_hostname', 'replace_hostname', 'plugin_path',
+                   'override_with_plugin']
     missing_values = []
     for ensure in ensure_list:
         if ensure not in config_dict:
@@ -230,6 +230,18 @@ def verify_config(config_dict):
         sys.exit(1)
     if "spool_directory" in config_dict:
         spool_directory = config_dict['spool_directory']
+    if config_dict['override_with_plugin']:
+        plugin = try_load(config_dict['plugin_path'])
+        try:
+            plugin.get_metrics
+        except Exception as e:
+            print "Exception occured while loading plugin path %s:" \
+                % (config_dict['plugin_path'])
+            print "    %s" % e
+            print "Plugin must implement 'get_metrics' see  \
+                plugins/plugin_example.py"
+            print "Exiting."
+            exit(1)
 
 
 def print_debug(msg):
@@ -352,8 +364,8 @@ def process_log(file_name):
             # log.debug('perfdata:%s' % mobj.PERFDATA)
             # SERVICEPERFDATA::time=0.001402s;;;0.000000 size=11783B;;;0
 
-            if mobj.GRAPHITEPLUGIN:
-                module = try_load(mobj.GRAPHITEPLUGIN)
+            if cfg['override_with_plugin']:
+                module = try_load(cfg['plugin_path'])
                 carbon_metrics = module.get_metrics(mobj.PERFDATA, mobj)
 
                 for pair in carbon_metrics:
@@ -387,27 +399,20 @@ def try_load(path):
     base, name = os.path.split(path)
     name, ext = os.path.splitext(name)
 
+    # Return module if already loaded
     try:
         return sys.modules[name]
     except KeyError:
         pass
 
-    # If any of the following calls raises an exception,
-    # there's a problem we can't handle -- let the caller handle it.
-
-    fp, pathname, description = imp.find_module(name, [base] + sys.path)
-
     try:
-        return imp.load_module(name, fp, pathname, description)
+        return imp.load_source(name, path)
     except (IOError, OSError, Exception) as e:
-        print "Exception '%s' loading plugin: %s" % (e, path)
-        print "Check if dir exists, or file permissions."
+        print "Exception occured while loading plugin path %s:" % path
+        print "    %s" % e
+        print "Check the path, or file permissions."
         print "Exiting."
         exit(1)
-    finally:
-        # Since we may exit via an exception, close fp explicitly.
-        if fp:
-            fp.close()
 
 
 def get_mobj(nag_array):
@@ -430,9 +435,10 @@ def get_mobj(nag_array):
             mobj.PERFDATA = replaced
         elif re.search("^\$_", replaced):
             continue
-        elif re.search("PLUGIN", var_name):
-            mobj.GRAPHITEPLUGIN = value
+        elif cfg['override_with_plugin']:
+            setattr(mobj, var_name, value)
         else:
+            replaced = re.sub("\s", "", replaced)
             setattr(mobj, var_name, replaced)
 
     mobj.validate()

@@ -274,6 +274,13 @@ class carbon(object):
         except:
             self.carbon_plaintext = False
 
+        try:
+            if cfg['override_with_plugin']:
+                self.plugin_path = cfg['plugin_path']
+            self.override_with_plugin = cfg['override_with_plugin']
+        except:
+            self.override_with_plugin = False
+
     def convert_messages(self, metrics):
         """
         Converts the metric obj list into graphite messages
@@ -312,7 +319,7 @@ class carbon(object):
         """
         Builds a carbon metric
         """
-        if m.GRAPHITEPLUGIN:
+        if self.override_with_plugin:
             return m.PATH
 
         path = ""

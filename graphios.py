@@ -38,6 +38,7 @@ from ConfigParser import SafeConfigParser
 from optparse import OptionParser
 import copy
 import graphios_backends as backends
+import imp
 import logging
 import logging.handlers
 import os
@@ -216,7 +217,8 @@ def verify_config(config_dict):
     global spool_directory
     ensure_list = ['replacement_character', 'log_file', 'log_max_size',
                    'log_level', 'sleep_time', 'sleep_max', 'test_mode',
-                   'reverse_hostname', 'replace_hostname']
+                   'reverse_hostname', 'replace_hostname', 'plugin_path',
+                   'override_with_plugin']
     missing_values = []
     for ensure in ensure_list:
         if ensure not in config_dict:
@@ -228,6 +230,18 @@ def verify_config(config_dict):
         sys.exit(1)
     if "spool_directory" in config_dict:
         spool_directory = config_dict['spool_directory']
+    if config_dict['override_with_plugin']:
+        plugin = try_load(config_dict['plugin_path'])
+        try:
+            plugin.get_metrics
+        except Exception as e:
+            print "Exception occured while loading plugin path %s:" \
+                % (config_dict['plugin_path'])
+            print "    %s" % e
+            print "Plugin must implement 'get_metrics' see  \
+                plugins/plugin_example.py"
+            print "Exiting."
+            exit(1)
 
 
 def print_debug(msg):
@@ -348,6 +362,20 @@ def process_log(file_name):
         if mobj:
             # break out the metric object into one object per perfdata metric
             # log.debug('perfdata:%s' % mobj.PERFDATA)
+            # SERVICEPERFDATA::time=0.001402s;;;0.000000 size=11783B;;;0
+
+            if cfg['override_with_plugin']:
+                module = try_load(cfg['plugin_path'])
+                carbon_metrics = module.get_metrics(mobj.PERFDATA, mobj)
+
+                for pair in carbon_metrics:
+                    nobj = copy.copy(mobj)
+                    nobj.PATH = pair[0]
+                    nobj.VALUE = pair[1]
+                    processed_objects.append(nobj)
+
+                continue
+
             for metric in mobj.PERFDATA.split():
                 try:
                     nobj = copy.copy(mobj)
@@ -364,6 +392,29 @@ def process_log(file_name):
     return processed_objects
 
 
+def try_load(path):
+    """
+        return the module given by path, load if not loaded
+    """
+    base, name = os.path.split(path)
+    name, ext = os.path.splitext(name)
+
+    # Return module if already loaded
+    try:
+        return sys.modules[name]
+    except KeyError:
+        pass
+
+    try:
+        return imp.load_source(name, path)
+    except (IOError, OSError, Exception) as e:
+        print "Exception occured while loading plugin path %s:" % path
+        print "    %s" % e
+        print "Check the path, or file permissions."
+        print "Exiting."
+        exit(1)
+
+
 def get_mobj(nag_array):
     """
         takes a split array of nagios variables and returns a mobj if it's
@@ -378,14 +429,18 @@ def get_mobj(nag_array):
             log.warn("could not split value %s, dropping metric" % var)
             return False
 
-        value = re.sub("/", cfg["replacement_character"], value)
+        replaced = re.sub("/", cfg["replacement_character"], value)
+
         if re.search("PERFDATA", var_name):
-            mobj.PERFDATA = value
-        elif re.search("^\$_", value):
+            mobj.PERFDATA = replaced
+        elif re.search("^\$_", replaced):
             continue
-        else:
-            value = re.sub("\s", "", value)
+        elif cfg['override_with_plugin']:
             setattr(mobj, var_name, value)
+        else:
+            replaced = re.sub("\s", "", replaced)
+            setattr(mobj, var_name, replaced)
+
     mobj.validate()
     if mobj.VALID is True:
         return mobj

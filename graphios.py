@@ -428,7 +428,7 @@ def process_log(file_name):
         if mobj:
             # break out the metric object into one object per perfdata metric
             '''send the mobj.PERFDAT string into the parser_enhanced() function
-            take the list that's returned and join it back as 
+            take the list that's returned and join it back as
             the mobj.PERFDATA string '''
             mobj.PERFDATA = ' '.join(parser_enhanced(mobj.PERFDATA))
             for metric in mobj.PERFDATA.split():

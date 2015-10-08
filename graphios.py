@@ -335,20 +335,21 @@ def configure():
         log.setLevel(logging.INFO)
         debug = False
 
+
 def parser_enhanced(raw):
-    ''' This function takes a raw perfdata string with spaces
+    """ This function takes a raw perfdata string with spaces
     in the UOM section and parses it into proper perfdata chunks.
-    This is done without regex by using the logic that a break in 
-    perfdata chunks will be indicated by a space preceded by a 
+    This is done without regex by using the logic that a break in
+    perfdata chunks will be indicated by a space preceded by a
     semicolon some number of chars previously.
 
     Returns list of perfdata chunks.
-    '''
+    """
     spaceindexes = []
-    for i,char in enumerate(raw):
+    for i, char in enumerate(raw):
         if char == ' ':
             spaceindexes.append(i)
-    # now starting from each space position work backwards 
+    # now starting from each space position work backwards
     #  through the string until we hit a semicolon
     hits = 0
     truedelims = []
@@ -357,12 +358,13 @@ def parser_enhanced(raw):
             break
         else:
             startpos = spaceindexes.pop()
-            for i in range(startpos-1,-1,-1):
+            for i in range(startpos-1, -1, -1):
                 # if you hit another space first then break
                 if raw[i] == ' ':
                     break
                 elif raw[i] == ';':
-                    # means this start position indicates a true delimiter within this raw string
+                    # means this start position indicates a true
+                    #  delimiter within this raw string
                     hits += 1
                     truedelims.append(startpos)
                     break
@@ -375,14 +377,12 @@ def parser_enhanced(raw):
         iteration += 1
         if len(truedelims) == 0:
             lastrun = True
-        # first turn the string into a list
-        rawl = list(raw)
         if lastrun:
             end = len(raw)
         else:
             end = truedelims.pop()
         chunk = []
-        for i in range(laststart,end):
+        for i in range(laststart, end):
             chunk.append(raw[i])
         laststart = end
         # clean up leading space
@@ -395,12 +395,13 @@ def parser_enhanced(raw):
     newchunks = []
     for chunk in chunks:
         # change spaces to underscores
-        newchunk = chunk.replace(' ','_')
+        newchunk = chunk.replace(' ', '_')
         # change % signs to 'pct'
-        newchunk = re.sub('%=','pct=',newchunk)
+        newchunk = re.sub('%=', 'pct=', newchunk)
         # do we need to do any more cleanup here?
         newchunks.append(newchunk)
     return(newchunks)
+
 
 def process_log(file_name):
     """ process log lines into GraphiosMetric Objects.
@@ -408,7 +409,6 @@ def process_log(file_name):
     by '::' it looks like:
     DATATYPE::HOSTPERFDATA  TIMET::1399738074 etc..
     """
-    regex_spacedetector = re.compile('(;\d*\.\d*\s)(?P<realdelim>.*)')
     processed_objects = []  # the final list of metric objects we'll return
     graphite_lines = 0  # count the number of valid lines we process
     try:
@@ -419,7 +419,7 @@ def process_log(file_name):
         log.critical("Can't open file:%s error: %s" % (file_name, ex))
         sys.exit(2)
     # parse each line into a metric object
-    for i,line in enumerate(file_array):
+    for i, line in enumerate(file_array):
         if not re.search("^DATATYPE::", line):
             continue
         graphite_lines += 1
@@ -428,7 +428,8 @@ def process_log(file_name):
         if mobj:
             # break out the metric object into one object per perfdata metric
             '''send the mobj.PERFDAT string into the parser_enhanced() function
-            take the list that's returned and join it back as the mobj.PERFDATA string '''
+            take the list that's returned and join it back as 
+            the mobj.PERFDATA string '''
             mobj.PERFDATA = ' '.join(parser_enhanced(mobj.PERFDATA))
             for metric in mobj.PERFDATA.split():
                 try:

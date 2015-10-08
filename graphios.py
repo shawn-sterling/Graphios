@@ -396,6 +396,8 @@ def parser_enhanced(raw):
     for chunk in chunks:
         # change spaces to underscores
         newchunk = chunk.replace(' ','_')
+        # change % signs to 'pct'
+        newchunk = re.sub('%=','pct=',newchunk)
         # do we need to do any more cleanup here?
         newchunks.append(newchunk)
     return(newchunks)

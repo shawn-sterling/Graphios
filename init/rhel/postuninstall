@@ -5,5 +5,3 @@ else
     # we are running systemd
     systemctl stop graphios.service
 fi
-
-unlink /usr/bin/graphios

@@ -1,6 +1,3 @@
-# add symlink
-ln -s /usr/bin/graphios.py /usr/bin/graphios
-
 # add graphios service
 if [ ! -d /etc/systemd ]; then
     # we are running init

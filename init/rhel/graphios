@@ -17,25 +17,29 @@
 # Check that networking is up.
 [ "$NETWORKING" = "no" ] && exit 0
 
-prog="/usr/bin/graphios"
-# or use the command line options:
-#prog="/usr/bin/graphios --log-file=/dir/mylog.log --spool-directory=/dir/my/sool"
+prog="/usr/bin/graphios.py"
+OPTIONS=""
 GRAPHIOS_USER="nagios"
 RETVAL=0
+lockfile=/var/lock/subsys/graphios
+
+if [ -f /etc/sysconfig/graphios ]; then
+	. /etc/sysconfig/graphios
+fi
 
 start () {
-        echo -n "Starting $prog"
-        /usr/bin/sudo -u ${GRAPHIOS_USER}  ${prog} &
+        echo -n $"Starting $prog: "
+        nohup su ${GRAPHIOS_USER} -s /bin/sh -c "${prog} ${OPTIONS}" >/dev/null 2>&1 &
         RETVAL=$?
-        [ $RETVAL -eq 0 ] && success || failure
+        [ $RETVAL -eq 0 ] && touch ${lockfile} && success || failure
         echo
 }
 
 stop () {
-        echo -n "Stopping $prog"
+        echo -n $"Stopping $prog: "
         killproc graphios.py
         RETVAL=$?
-        [ $RETVAL -eq 0 ] && success || failure
+        [ $RETVAL -eq 0 ] && rm -f ${lockfile}
         echo
 }
 

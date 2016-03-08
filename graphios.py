@@ -43,6 +43,7 @@ import logging.handlers
 import os
 import os.path
 import re
+import shlex
 import sys
 import time
 
@@ -360,9 +361,15 @@ def process_log(file_name):
         variables = line.split('\t')
         mobj = get_mobj(variables)
         if mobj:
-            # break out the metric object into one object per perfdata metric
-            # log.debug('perfdata:%s' % mobj.PERFDATA)
-            for metric in mobj.PERFDATA.split():
+            #log.debug('perfdata:%s' % mobj.PERFDATA)
+            try:
+                metric_array = shlex.split(mobj.PERFDATA)
+                if not '=' in metric_array[0]:
+                    metric_array = mobj.PERFDATA.split('; ')
+            except:
+                log.critical("failed to parse perfdata: %s" % (mobj.PERFDATA))
+                continue
+            for metric in metric_array:
                 try:
                     nobj = copy.copy(mobj)
                     (nobj.LABEL, d) = metric.split('=')

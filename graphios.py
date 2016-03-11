@@ -365,23 +365,32 @@ def process_log(file_name):
             try:
                 metric_array = shlex.split(mobj.PERFDATA)
                 if not '=' in metric_array[0]:
-                    metric_array = mobj.PERFDATA.split('; ')
+                    if not '=' in metric_array[0]:
+                    perf = ''
+                    aux_metric_array = []
+                    for value in metric_array:
+                        perf += value
+                        if '=' in value:
+                            aux_metric_array.append(perf)
+                            perf = ''
+                    metric_array = aux_metric_array
             except:
                 log.critical("failed to parse perfdata: %s" % (mobj.PERFDATA))
                 continue
             for metric in metric_array:
-                try:
-                    nobj = copy.copy(mobj)
-                    (nobj.LABEL, d) = metric.split('=')
-                    v = d.split(';')[0]
-                    u = v
-                    nobj.VALUE = re.sub("[a-zA-Z%]", "", v)
-                    nobj.UOM = re.sub("[^a-zA-Z]+", "", u)
-                    processed_objects.append(nobj)
-                except:
-                    log.critical("failed to parse label: '%s' part of perf"
-                                 "string '%s'" % (metric, nobj.PERFDATA))
-                    continue
+                if '=' in metric:
+                    try:
+                        nobj = copy.copy(mobj)
+                        (nobj.LABEL, d) = metric.split('=')
+                        v = d.split(';')[0]
+                        u = v
+                        nobj.VALUE = re.sub("[a-zA-Z%\.]", "", v)
+                        nobj.UOM = re.sub("[^a-zA-Z]+", "", u)
+                        processed_objects.append(nobj)
+                    except:
+                        log.critical("failed to parse label: '%s' part of perf"
+                                     "string '%s'" % (metric, nobj.PERFDATA))
+                        continue
     return processed_objects
 
 

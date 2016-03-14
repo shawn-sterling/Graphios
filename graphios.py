@@ -384,7 +384,7 @@ def process_log(file_name):
                         (nobj.LABEL, d) = metric.split('=')
                         v = d.split(';')[0]
                         u = v
-                        nobj.VALUE = re.sub("[a-zA-Z%\.]", "", v)
+                        nobj.VALUE = re.sub("[a-zA-Z%]", "", v)
                         nobj.UOM = re.sub("[^a-zA-Z]+", "", u)
                         processed_objects.append(nobj)
                     except:

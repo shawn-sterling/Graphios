@@ -355,6 +355,73 @@ def configure():
         debug = False
 
 
+def parser_enhanced(raw):
+    """ This function takes a raw perfdata string with spaces
+    in the UOM section and parses it into proper perfdata chunks.
+    This is done without regex by using the logic that a break in
+    perfdata chunks will be indicated by a space preceded by a
+    semicolon some number of chars previously.
+
+    Returns list of perfdata chunks.
+    """
+    spaceindexes = []
+    for i, char in enumerate(raw):
+        if char == ' ':
+            spaceindexes.append(i)
+    # now starting from each space position work backwards
+    #  through the string until we hit a semicolon
+    hits = 0
+    truedelims = []
+    while True:
+        if len(spaceindexes) == 0:
+            break
+        else:
+            startpos = spaceindexes.pop()
+            for i in range(startpos-1, -1, -1):
+                # if you hit another space first then break
+                if raw[i] == ' ':
+                    break
+                elif raw[i] == ';':
+                    # means this start position indicates a true
+                    #  delimiter within this raw string
+                    hits += 1
+                    truedelims.append(startpos)
+                    break
+    # now use the true delimiters to break up the string.
+    chunks = []
+    lastrun = False
+    iteration = 0
+    laststart = 0
+    while True:
+        iteration += 1
+        if len(truedelims) == 0:
+            lastrun = True
+        if lastrun:
+            end = len(raw)
+        else:
+            end = truedelims.pop()
+        chunk = []
+        for i in range(laststart, end):
+            chunk.append(raw[i])
+        laststart = end
+        # clean up leading space
+        if chunk[0] == ' ':
+            chunk.pop(0)
+        chunks.append(''.join(chunk))
+        if lastrun:
+            break
+    # now we've got stuff in logical chunks. Let's clean up ugly chars.
+    newchunks = []
+    for chunk in chunks:
+        # change spaces to underscores
+        newchunk = chunk.replace(' ', '_')
+        # change % signs to 'pct'
+        newchunk = re.sub('%=', 'pct=', newchunk)
+        # do we need to do any more cleanup here?
+        newchunks.append(newchunk)
+    return(newchunks)
+
+
 def process_log(file_name):
     """ process log lines into GraphiosMetric Objects.
     input is a tab delimited series of key/values each of which are delimited
@@ -371,16 +438,18 @@ def process_log(file_name):
         log.critical("Can't open file:%s error: %s" % (file_name, ex))
         sys.exit(2)
     # parse each line into a metric object
-    for line in file_array:
+    for i, line in enumerate(file_array):
         if not re.search("^DATATYPE::", line):
             continue
-        # log.debug('parsing: %s' % line)
         graphite_lines += 1
         variables = line.split('\t')
         mobj = get_mobj(variables)
         if mobj:
             # break out the metric object into one object per perfdata metric
-            # log.debug('perfdata:%s' % mobj.PERFDATA)
+            '''send the mobj.PERFDAT string into the parser_enhanced() function
+            take the list that's returned and join it back as
+            the mobj.PERFDATA string '''
+            mobj.PERFDATA = ' '.join(parser_enhanced(mobj.PERFDATA))
             for metric in mobj.PERFDATA.split():
                 try:
                     nobj = copy.copy(mobj)
@@ -451,7 +520,9 @@ def process_spool_dir(directory):
     try:
         perfdata_files = os.listdir(directory)
     except (IOError, OSError) as e:
-        print "Exception '%s' reading spool directory: %s" % (e, directory)
+        msg = "Exception '%s' reading spool directory: %s" % (e, directory)
+        print(msg)
+        log.debug(msg)
         print "Check if dir exists, or file permissions."
         print "Exiting."
         sys.exit(1)

@@ -391,8 +391,9 @@ def process_log(file_name):
                     nobj.UOM = re.sub("[^a-zA-Z]+", "", u)
                     processed_objects.append(nobj)
                 except:
-                    log.critical("failed to parse label: '%s' part of perf"
-                                 "string '%s'" % (metric, nobj.PERFDATA))
+                    log.critical("failed to parse label '%s' for "
+                                 "host '%s' service '%s' perfdata '%s'"
+                        % (metric, nobj.HOSTNAME, nobj.SERVICEDESC, nobj.PERFDATA))
                     continue
     return processed_objects
 

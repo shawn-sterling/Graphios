@@ -12,6 +12,7 @@
 # Nathan Bird <ecthellion@gmail.com>
 # Dave Josephsen <dave@skeptech.org>
 # Emil Thelin <https://github.com/gummiboll>
+# Alex White <alex.white@diamond.ac.uk>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -159,6 +160,7 @@ class GraphiosMetric(object):
         ):
             if "use_service_desc" in cfg and cfg["use_service_desc"] is True:
                 if self.SERVICEDESC != '' or self.DATATYPE == 'HOSTPERFDATA':
+                    log.debug(self.HOSTNAME +':'+ self.SERVICEDESC +" mobj valid")
                     self.VALID = True
             else:
                 # not using service descriptions
@@ -169,8 +171,10 @@ class GraphiosMetric(object):
                     self.GRAPHITEPREFIX == "" and
                     self.GRAPHITEPOSTFIX == ""
                 ):
+                    log.debug(self.HOSTNAME +':'+ self.SERVICEDESC +" mobj invalid - neither GRAPHITEPREFIX nor GRAPHITEPOSTFIX set")
                     self.VALID = False
                 else:
+                    log.debug(self.HOSTNAME +':'+ self.SERVICEDESC +" mobj valid")
                     self.VALID = True
 
     def check_adjust_hostname(self):
@@ -389,6 +393,8 @@ def process_log(file_name):
                     u = v
                     nobj.VALUE = re.sub("[a-zA-Z%]", "", v)
                     nobj.UOM = re.sub("[^a-zA-Z]+", "", u)
+
+                    log.debug('parsed metric:', nobj.VALUE)
                     processed_objects.append(nobj)
                 except:
                     log.critical("failed to parse label: '%s' part of perf"
@@ -419,6 +425,7 @@ def get_mobj(nag_array):
         else:
             value = re.sub("\s", "", value)
             setattr(mobj, var_name, value)
+    log.debug("received mobj for %s:%s" % (mobj.HOSTNAME, mobj.SERVICEDESC))
     mobj.validate()
     if mobj.VALID is True:
         return mobj

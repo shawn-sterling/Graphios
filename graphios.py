@@ -13,6 +13,7 @@
 # Dave Josephsen <dave@skeptech.org>
 # Emil Thelin <https://github.com/gummiboll>
 # Alex White <alex.white@diamond.ac.uk>
+# Markri <https://github.com/markri>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -155,7 +156,7 @@ class GraphiosMetric(object):
         self.check_adjust_hostname()
         if (
             self.TIMET is not '' and
-            self.PERFDATA is not '' and
+            (self.PERFDATA is not '' or isinstance(self.SERVICESTATEID, int)) and
             self.HOSTNAME is not ''
         ):
             if "use_service_desc" in cfg and cfg["use_service_desc"] is True:
@@ -400,6 +401,17 @@ def process_log(file_name):
                     log.critical("failed to parse label: '%s' part of perf"
                                  "string '%s'" % (metric, nobj.PERFDATA))
                     continue
+
+            # make a new metric object for the service status
+            nobj = copy.copy(mobj)
+            nobj.LABEL = "state_id"
+            nobj.VALUE = mobj.SERVICESTATEID
+
+            log.debug('parsed metric: state_id')
+            processed_objects.append(nobj)
+
+
+
     return processed_objects
 
 
@@ -425,6 +437,13 @@ def get_mobj(nag_array):
         else:
             value = re.sub("\s", "", value)
             setattr(mobj, var_name, value)
+
+    # map the Nagios SERVICESTATE string to integer so that Graphite can chart them
+    if mobj.SERVICESTATE:
+        stateMapping = dict(OK=0, WARNING=1, CRITICAL=2, UNKNOWN=3)
+        state = getattr(mobj, "SERVICESTATE", "UNKNOWN")
+        setattr(mobj, "SERVICESTATEID", stateMapping[state])
+
     log.debug("received mobj for %s:%s" % (mobj.HOSTNAME, mobj.SERVICEDESC))
     mobj.validate()
     if mobj.VALID is True:

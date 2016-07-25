@@ -180,7 +180,7 @@ class GraphiosMetric(object):
                 ):
                     log.debug(
                         self.HOSTNAME + ':' + self.SERVICEDESC +
-                        "neither GRAPHITEPREFIX nor GRAPHITEPOSTFIX set"
+                        " neither GRAPHITEPREFIX nor GRAPHITEPOSTFIX set"
                     )
                     log.debug(
                         self.HOSTNAME + ':' + self.SERVICEDESC +

@@ -156,12 +156,18 @@ class GraphiosMetric(object):
         self.check_adjust_hostname()
         if (
             self.TIMET is not '' and
-            (self.PERFDATA is not '' or isinstance(self.SERVICESTATEID, int)) and
+            (
+                self.PERFDATA is not '' or
+                isinstance(self.SERVICESTATEID, int)
+            ) and
             self.HOSTNAME is not ''
         ):
             if "use_service_desc" in cfg and cfg["use_service_desc"] is True:
                 if self.SERVICEDESC != '' or self.DATATYPE == 'HOSTPERFDATA':
-                    log.debug(self.HOSTNAME +':'+ self.SERVICEDESC +" mobj valid")
+                    log.debug(
+                        self.HOSTNAME + ':' + self.SERVICEDESC +
+                        " mobj valid"
+                    )
                     self.VALID = True
             else:
                 # not using service descriptions
@@ -172,10 +178,20 @@ class GraphiosMetric(object):
                     self.GRAPHITEPREFIX == "" and
                     self.GRAPHITEPOSTFIX == ""
                 ):
-                    log.debug(self.HOSTNAME +':'+ self.SERVICEDESC +" mobj invalid - neither GRAPHITEPREFIX nor GRAPHITEPOSTFIX set")
+                    log.debug(
+                        self.HOSTNAME + ':' + self.SERVICEDESC +
+                        "neither GRAPHITEPREFIX nor GRAPHITEPOSTFIX set"
+                    )
+                    log.debug(
+                        self.HOSTNAME + ':' + self.SERVICEDESC +
+                        " mobj invalid"
+                    )
                     self.VALID = False
                 else:
-                    log.debug(self.HOSTNAME +':'+ self.SERVICEDESC +" mobj valid")
+                    log.debug(
+                        self.HOSTNAME + ':' + self.SERVICEDESC +
+                        " mobj valid"
+                    )
                     self.VALID = True
 
     def check_adjust_hostname(self):
@@ -410,8 +426,6 @@ def process_log(file_name):
             log.debug('parsed metric: state_id')
             processed_objects.append(nobj)
 
-
-
     return processed_objects
 
 
@@ -438,11 +452,12 @@ def get_mobj(nag_array):
             value = re.sub("\s", "", value)
             setattr(mobj, var_name, value)
 
-    # map the Nagios SERVICESTATE string to integer so that Graphite can chart them
+    # so that Graphite can chart them,
+    # translate the Nagios SERVICESTATE string to integer
     if mobj.SERVICESTATE:
-        stateMapping = dict(OK=0, WARNING=1, CRITICAL=2, UNKNOWN=3)
+        state_mapping = dict(OK=0, WARNING=1, CRITICAL=2, UNKNOWN=3)
         state = getattr(mobj, "SERVICESTATE", "UNKNOWN")
-        setattr(mobj, "SERVICESTATEID", stateMapping[state])
+        setattr(mobj, "SERVICESTATEID", state_mapping[state])
 
     log.debug("received mobj for %s:%s" % (mobj.HOSTNAME, mobj.SERVICEDESC))
     mobj.validate()

@@ -400,8 +400,9 @@ def process_log(file_name):
         variables = line.split('\t')
         mobj = get_mobj(variables)
         if mobj:
+            log_prefix = '%s:%s' % (mobj.HOSTNAME, mobj.SERVICEDESC)
+            # log.debug('%s perfdata:%s' % (log_prefix, mobj.PERFDATA))
             # break out the metric object into one object per perfdata metric
-            # log.debug('perfdata:%s' % mobj.PERFDATA)
             for metric in mobj.PERFDATA.split():
                 try:
                     nobj = copy.copy(mobj)
@@ -411,7 +412,11 @@ def process_log(file_name):
                     nobj.VALUE = re.sub("[a-zA-Z%]", "", v)
                     nobj.UOM = re.sub("[^a-zA-Z]+", "", u)
 
-                    log.debug('parsed metric:', nobj.VALUE)
+                    log.debug('%s parsed "%s" = %s' % (
+                            log_prefix,
+                            nobj.LABEL,
+                            nobj.VALUE
+                        ))
                     processed_objects.append(nobj)
                 except:
                     log.critical("failed to parse label: '%s' part of perf"

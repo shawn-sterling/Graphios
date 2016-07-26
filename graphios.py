@@ -164,10 +164,6 @@ class GraphiosMetric(object):
         ):
             if "use_service_desc" in cfg and cfg["use_service_desc"] is True:
                 if self.SERVICEDESC != '' or self.DATATYPE == 'HOSTPERFDATA':
-                    log.debug(
-                        self.HOSTNAME + ':' + self.SERVICEDESC +
-                        " mobj valid"
-                    )
                     self.VALID = True
             else:
                 # not using service descriptions
@@ -180,18 +176,10 @@ class GraphiosMetric(object):
                 ):
                     log.debug(
                         self.HOSTNAME + ':' + self.SERVICEDESC +
-                        " neither GRAPHITEPREFIX nor GRAPHITEPOSTFIX set"
-                    )
-                    log.debug(
-                        self.HOSTNAME + ':' + self.SERVICEDESC +
-                        " mobj invalid"
+                        " invalid (no GRAPHITEPREFIX or GRAPHITEPOSTFIX)"
                     )
                     self.VALID = False
                 else:
-                    log.debug(
-                        self.HOSTNAME + ':' + self.SERVICEDESC +
-                        " mobj valid"
-                    )
                     self.VALID = True
 
     def check_adjust_hostname(self):
@@ -464,7 +452,6 @@ def get_mobj(nag_array):
         state = getattr(mobj, "SERVICESTATE", "UNKNOWN")
         setattr(mobj, "SERVICESTATEID", state_mapping[state])
 
-    log.debug("received mobj for %s:%s" % (mobj.HOSTNAME, mobj.SERVICEDESC))
     mobj.validate()
     if mobj.VALID is True:
         return mobj

@@ -362,6 +362,11 @@ class carbon(object):
         Send the metrics
         """
         ret = 0
+
+        # if we were given zero metrics don't bother connecting
+        if len(metrics) is 0:
+            return ret
+
         sock = socket.socket()
         servers = self.carbon_servers.split(",")
         for serv in servers:

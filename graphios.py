@@ -12,6 +12,8 @@
 # Nathan Bird <ecthellion@gmail.com>
 # Dave Josephsen <dave@skeptech.org>
 # Emil Thelin <https://github.com/gummiboll>
+# Alex White <alex.white@diamond.ac.uk>
+# Markri <https://github.com/markri>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -154,7 +156,12 @@ class GraphiosMetric(object):
         self.check_adjust_hostname()
         if (
             self.TIMET is not '' and
-            self.PERFDATA is not '' and
+            (
+                self.PERFDATA is not '' or
+                isinstance(self.SERVICESTATEID, int) or
+                self.THRESHOLD_WARN is not '' or
+                self.THRESHOLD_CRIT is not ''
+            ) and
             self.HOSTNAME is not ''
         ):
             if "use_service_desc" in cfg and cfg["use_service_desc"] is True:
@@ -169,6 +176,10 @@ class GraphiosMetric(object):
                     self.GRAPHITEPREFIX == "" and
                     self.GRAPHITEPOSTFIX == ""
                 ):
+                    log.debug(
+                        self.HOSTNAME + ':' + self.SERVICEDESC +
+                        " invalid (no GRAPHITEPREFIX or GRAPHITEPOSTFIX)"
+                    )
                     self.VALID = False
                 else:
                     self.VALID = True
@@ -234,7 +245,9 @@ def verify_config(config_dict):
     global spool_directory
     ensure_list = ['replacement_character', 'log_file', 'log_max_size',
                    'log_level', 'sleep_time', 'sleep_max', 'test_mode',
-                   'reverse_hostname', 'replace_hostname']
+                   'reverse_hostname', 'replace_hostname',
+                   'report_check_value', 'report_check_result_state',
+                   'report_check_thresholds']
     missing_values = []
     for ensure in ensure_list:
         if ensure not in config_dict:
@@ -379,21 +392,74 @@ def process_log(file_name):
         variables = line.split('\t')
         mobj = get_mobj(variables)
         if mobj:
-            # break out the metric object into one object per perfdata metric
-            # log.debug('perfdata:%s' % mobj.PERFDATA)
+            log_prefix = '%s:%s' % (mobj.HOSTNAME, mobj.SERVICEDESC)
+            # log.debug('%s perfdata:%s' % (log_prefix, mobj.PERFDATA))
             for metric in mobj.PERFDATA.split():
+                # break out the metric object into one object per
+                # perfdata metric
+
+                if cfg["report_check_value"]:
+                    try:
+                        nobj = copy.copy(mobj)
+                        (nobj.LABEL, d) = metric.split('=')
+                        v = d.split(';')[0]
+                        u = v
+                        nobj.VALUE = re.sub("[a-zA-Z%]", "", v)
+                        nobj.UOM = re.sub("[^a-zA-Z]+", "", u)
+
+                        log.debug('%s parsed "%s" = %s' % (
+                            log_prefix,
+                            nobj.LABEL,
+                            nobj.VALUE
+                        ))
+                        processed_objects.append(nobj)
+                    except:
+                        log.critical("failed to parse label: '%s' part of perf"
+                                     "string '%s'" % (metric, nobj.PERFDATA))
+                        continue
+
+            # report the warning and critical thresholds that were set on
+            # this Nagios check
+            if cfg["report_check_thresholds"]:
+                try:
+                    # take the threshold data from the first perfdata metric;
+                    # the thresholds should be the same for all metrics in
+                    # this check report(?)
+                    firstmetric = mobj.PERFDATA.split()[0]
+                    data = firstmetric.split('=')[1]
+                    (warn, crit) = data.split(';')[1:3]
+
+                    # warn
+                    nobj = copy.copy(mobj)
+                    nobj.LABEL = "threshold_warn"
+                    nobj.VALUE = warn
+                    processed_objects.append(nobj)
+                    log.debug('%s parsed warn threshold' % log_prefix)
+
+                    # crit
+                    nobj = copy.copy(mobj)
+                    nobj.LABEL = "threshold_crit"
+                    nobj.VALUE = crit
+                    processed_objects.append(nobj)
+                    log.debug('%s parsed crit threshold' % log_prefix)
+
+                except:
+                    log.debug('%s no thresholds parsed' % log_prefix)
+                    pass
+
+            # make a new metric object for the service status
+            if cfg["report_check_result_state"]:
                 try:
                     nobj = copy.copy(mobj)
-                    (nobj.LABEL, d) = metric.split('=')
-                    v = d.split(';')[0]
-                    u = v
-                    nobj.VALUE = re.sub("[a-zA-Z%]", "", v)
-                    nobj.UOM = re.sub("[^a-zA-Z]+", "", u)
+                    nobj.LABEL = "state_id"
+                    nobj.VALUE = mobj.SERVICESTATEID
+
+                    log.debug('%s parsed state_id' % log_prefix)
                     processed_objects.append(nobj)
                 except:
-                    log.critical("failed to parse label: '%s' part of perf"
-                                 "string '%s'" % (metric, nobj.PERFDATA))
-                    continue
+                    log.debug('%s no state_id parsed' % log_prefix)
+                    pass
+
     return processed_objects
 
 
@@ -419,6 +485,14 @@ def get_mobj(nag_array):
         else:
             value = re.sub("\s", "", value)
             setattr(mobj, var_name, value)
+
+    # so that Graphite can chart them,
+    # translate the Nagios SERVICESTATE string to integer
+    if mobj.SERVICESTATE:
+        state_mapping = dict(OK=0, WARNING=1, CRITICAL=2, UNKNOWN=3)
+        state = getattr(mobj, "SERVICESTATE", "UNKNOWN")
+        setattr(mobj, "SERVICESTATEID", state_mapping[state])
+
     mobj.validate()
     if mobj.VALID is True:
         return mobj

@@ -175,13 +175,14 @@ class GraphiosMetric(object):
 
     def check_adjust_hostname(self):
         self.HOSTNAME = self.HOSTNAME.lower()
+        if cfg["append_domain"]:
+            if not self.HOSTNAME.endswith(cfg["append_domain"]):
+                self.HOSTNAME += '.' + cfg["append_domain"]
         if cfg["reverse_hostname"]:
             self.HOSTNAME = '.'.join(reversed(self.HOSTNAME.split('.')))
         if cfg["replace_hostname"]:
             self.HOSTNAME = self.HOSTNAME.replace(".", cfg["replacement_character"])
-        if cfg["append_domain"]:
-            if not self.HOSTNAME.endswith(cfg["append_domain"]):
-                self.HOSTNAME += '.' + cfg["append_domain"]
+
 
 def chk_bool(value):
     """

@@ -721,6 +721,199 @@ class influxdb09(influxdb):
         return ret
 
 
+
+# ###########################################################
+# #### influxdb 1.0 backend  ####################################
+
+class influxdb1(object):
+    """
+    influxdb_url
+    influxdb_time_detail
+    influxdb_max_metrics
+    influxdb_extra_tags
+    """
+    def __init__(self, cfg):
+        self.log = logging.getLogger("log.backends.influxdb")
+        self.log.info("InfluxDB 1.0 backend initialized")
+        self.timeout = 5
+
+        if 'influxdb_url' in cfg:
+            self.url = cfg['influxdb_url']
+        else:
+            self.log.critical("Missing influxdb_url in graphios.cfg    db=nagios")
+            sys.exit(1)
+
+        # nano seconds
+        self.time_precision = 10 ** 9
+        if 'influxdb_time_precision' in cfg:
+            self.time_precision = cfg['influxdb_time_precision']
+
+        if 'influxdb_max_metrics' in cfg:
+            try:
+                self.influxdb_max_metrics = int(cfg['influxdb_max_metrics'])
+            except ValueError:
+                self.log.critical("influxdb_max_metrics needs to be a integer")
+                sys.exit(1)
+        else:
+            self.influxdb_max_metrics = 250
+
+        if 'influxdb_extra_tags' in cfg:
+            self.influxdb_extra_tags = ast.literal_eval(
+                cfg['influxdb_extra_tags'])
+            #print self.influxdb_extra_tags
+        else:
+            self.influxdb_extra_tags = {}
+
+    def todo_convert(self, metrics):
+        # Converts the metric object list into a list of statsd tuples
+        out_list = []
+        for m in metrics:
+            path = '%s.%s.%s.%s.%s' % (m.METRICBASEPATH, m.GRAPHITEPREFIX,
+                                       m.HOSTNAME, m.GRAPHITEPOSTFIX,
+                                       m.LABEL)
+            path = re.sub(r'\.$', '', path)  # fix paths that end in dot
+            path = re.sub(r'\.\.', '.', path)  # fix paths with empty values
+            mtype = self.set_type(m)  # gauge|counter|timer|set
+            value = "%s|%s" % (m.VALUE, mtype)  # emit literally this to statsd
+            metric_tuple = "%s:%s" % (path, value)
+            out_list.append(metric_tuple)
+
+        return out_list
+
+    def format_metric(self, timestamp, path, tags, value):
+        tag_list = []
+        for k in tags:
+            if tags[k]:
+                tag_list.append('{0}={1}'.format(k, tags[k]))
+        t = ','.join(tag_list)
+        ts = int(timestamp) * int(self.time_precision)
+        m = '{0},{1} value={2} {3}'.format(path, t, value, ts)
+        return m
+
+    def format_series(self, chunk):
+        return '\n'.join(chunk)
+
+    def send(self, metrics):
+        """ Connect to influxdb and send metrics """
+        ret = 0
+        perfdata = []
+        for m in metrics:
+            ret += 1
+
+            if (m.SERVICEDESC == ''):
+                path = m.HOSTCHECKCOMMAND
+            else:
+                path = m.SERVICEDESC
+
+            # Ensure a int/float gets passed
+            try:
+                value = int(m.VALUE)
+            except ValueError:
+                try:
+                    value = float(m.VALUE)
+                except ValueError:
+                    value = 0
+
+            tags = {"check": m.LABEL, "host": m.HOSTNAME}
+            tags.update(self.influxdb_extra_tags)
+            perfdata.append(self.format_metric(int(m.TIMET), path, tags, value))
+
+        series_chunks = self.chunks(perfdata, self.influxdb_max_metrics)
+        for chunk in series_chunks:
+            series = self.format_series(chunk)
+            if not self._send(self.url, series):
+                ret = 0
+
+        return ret
+
+
+
+    def chunks(self, l, n):
+        """ Yield successive n-sized chunks from l. """
+        for i in xrange(0, len(l), n):
+            yield l[i:i+n]
+
+    def _send(self, server, chunk):
+        if server.startswith('stdout:'):
+            print(server)
+            print(chunk)
+        else:
+            self.log.debug("Connecting to InfluxDB at %s" % server)
+            self.log.debug("sending: %s" % chunk)
+            req = urllib2.Request(self.url, chunk)
+            req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+            try:
+                r = urllib2.urlopen(req, timeout=self.timeout)
+                r.close()
+                return True
+            except urllib2.HTTPError as e:
+                body = e.read()
+                self.log.warning('Failed to send metrics to InfluxDB. \
+                                    Status code: %d: %s' % (e.code, body))
+                return False
+            except IOError as e:
+                fail_string = "Failed to send metrics to InfluxDB. "
+                if hasattr(e, 'code'):
+                    fail_string = fail_string + "Status code: %s" % e.code
+                if hasattr(e, 'reason'):
+                    fail_string = fail_string + str(e.reason)
+                self.log.warning(fail_string)
+                return False
+
+    '''
+    def build_path(self, m):
+        """ Returns a path """
+        path = ""
+        if m.METRICBASEPATH != "":
+            path += "%s." % m.METRICBASEPATH
+        if m.GRAPHITEPREFIX != "":
+            path += "%s." % m.GRAPHITEPREFIX
+        path += "%s." % m.HOSTNAME
+        if m.SERVICEDESC != "":
+            path += "%s." % m.SERVICEDESC
+        path = "%s%s" % (path, m.LABEL)
+        if m.GRAPHITEPOSTFIX != "":
+            path = "%s.%s" % (path, m.GRAPHITEPOSTFIX)
+        return path
+
+    def send(self, metrics):
+        """ Connect to influxdb and send metrics """
+        ret = 0
+        perfdata = {}
+        series = []
+        for m in metrics:
+            ret += 1
+            path = self.build_path(m)
+            if path not in perfdata:
+                perfdata[path] = []
+            #### TODO: influx assumes timestamp in milliseconds FAIL! change to seconds!
+            timet_ms = int(m.TIMET)*1000
+
+            # Ensure a int/float gets passed
+            try:
+                value = int(m.VALUE)
+            except ValueError:
+                try:
+                    value = float(m.VALUE)
+                except ValueError:
+                    value = 0
+
+            perfdata[path].append([timet_ms, value])
+
+        for k, v in perfdata.iteritems():
+            series.append({"name": k, "columns": ["time", "value"],
+                           "points": v})
+
+        series_chunks = self.chunks(series, self.influxdb_max_metrics)
+        for chunk in series_chunks:
+            for s in self.influxdb_servers:
+                if not self._send(s, chunk):
+                    ret = 0
+
+        return ret
+    '''
+
+
 # ###########################################################
 # #### stdout backend  #######################################
 

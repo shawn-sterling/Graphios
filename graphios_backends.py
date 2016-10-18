@@ -827,7 +827,6 @@ class influxdb1(object):
         return ret
 
 
-
     def chunks(self, l, n):
         """ Yield successive n-sized chunks from l. """
         for i in xrange(0, len(l), n):
@@ -859,59 +858,6 @@ class influxdb1(object):
                     fail_string = fail_string + str(e.reason)
                 self.log.warning(fail_string)
                 return False
-
-    '''
-    def build_path(self, m):
-        """ Returns a path """
-        path = ""
-        if m.METRICBASEPATH != "":
-            path += "%s." % m.METRICBASEPATH
-        if m.GRAPHITEPREFIX != "":
-            path += "%s." % m.GRAPHITEPREFIX
-        path += "%s." % m.HOSTNAME
-        if m.SERVICEDESC != "":
-            path += "%s." % m.SERVICEDESC
-        path = "%s%s" % (path, m.LABEL)
-        if m.GRAPHITEPOSTFIX != "":
-            path = "%s.%s" % (path, m.GRAPHITEPOSTFIX)
-        return path
-
-    def send(self, metrics):
-        """ Connect to influxdb and send metrics """
-        ret = 0
-        perfdata = {}
-        series = []
-        for m in metrics:
-            ret += 1
-            path = self.build_path(m)
-            if path not in perfdata:
-                perfdata[path] = []
-            #### TODO: influx assumes timestamp in milliseconds FAIL! change to seconds!
-            timet_ms = int(m.TIMET)*1000
-
-            # Ensure a int/float gets passed
-            try:
-                value = int(m.VALUE)
-            except ValueError:
-                try:
-                    value = float(m.VALUE)
-                except ValueError:
-                    value = 0
-
-            perfdata[path].append([timet_ms, value])
-
-        for k, v in perfdata.iteritems():
-            series.append({"name": k, "columns": ["time", "value"],
-                           "points": v})
-
-        series_chunks = self.chunks(series, self.influxdb_max_metrics)
-        for chunk in series_chunks:
-            for s in self.influxdb_servers:
-                if not self._send(s, chunk):
-                    ret = 0
-
-        return ret
-    '''
 
 
 # ###########################################################

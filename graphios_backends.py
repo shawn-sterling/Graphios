@@ -721,7 +721,6 @@ class influxdb09(influxdb):
         return ret
 
 
-
 # ###########################################################
 # #### influxdb 1.0 backend  ####################################
 
@@ -740,7 +739,7 @@ class influxdb1(object):
         if 'influxdb_url' in cfg:
             self.url = cfg['influxdb_url']
         else:
-            self.log.critical("Missing influxdb_url in graphios.cfg    db=nagios")
+            self.log.critical("Missing influxdb_url in graphios.cfg")
             sys.exit(1)
 
         # nano seconds
@@ -763,22 +762,6 @@ class influxdb1(object):
             #print self.influxdb_extra_tags
         else:
             self.influxdb_extra_tags = {}
-
-    def todo_convert(self, metrics):
-        # Converts the metric object list into a list of statsd tuples
-        out_list = []
-        for m in metrics:
-            path = '%s.%s.%s.%s.%s' % (m.METRICBASEPATH, m.GRAPHITEPREFIX,
-                                       m.HOSTNAME, m.GRAPHITEPOSTFIX,
-                                       m.LABEL)
-            path = re.sub(r'\.$', '', path)  # fix paths that end in dot
-            path = re.sub(r'\.\.', '.', path)  # fix paths with empty values
-            mtype = self.set_type(m)  # gauge|counter|timer|set
-            value = "%s|%s" % (m.VALUE, mtype)  # emit literally this to statsd
-            metric_tuple = "%s:%s" % (path, value)
-            out_list.append(metric_tuple)
-
-        return out_list
 
     def format_metric(self, timestamp, path, tags, value):
         tag_list = []
@@ -816,16 +799,15 @@ class influxdb1(object):
 
             tags = {"check": m.LABEL, "host": m.HOSTNAME}
             tags.update(self.influxdb_extra_tags)
-            perfdata.append(self.format_metric(int(m.TIMET), path, tags, value))
+            perfdata.append(self.format_metric(int(m.TIMET), path,
+                                               tags, value))
 
         series_chunks = self.chunks(perfdata, self.influxdb_max_metrics)
         for chunk in series_chunks:
             series = self.format_series(chunk)
             if not self._send(self.url, series):
                 ret = 0
-
         return ret
-
 
     def chunks(self, l, n):
         """ Yield successive n-sized chunks from l. """

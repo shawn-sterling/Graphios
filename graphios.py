@@ -181,7 +181,8 @@ class GraphiosMetric(object):
         if cfg["reverse_hostname"]:
             self.HOSTNAME = '.'.join(reversed(self.HOSTNAME.split('.')))
         if cfg["replace_hostname"]:
-            self.HOSTNAME = self.HOSTNAME.replace(".", cfg["replacement_character"])
+            self.HOSTNAME = self.HOSTNAME.replace(".",
+                                                  cfg["replacement_character"])
 
 
 def chk_bool(value):
@@ -385,11 +386,12 @@ def process_log(file_name):
             # break out the metric object into one object per perfdata metric
             # log.debug('perfdata:%s' % mobj.PERFDATA)
             data = mobj.PERFDATA
-            if cfg.get('windows_format_fix',False):
+            if cfg.get('windows_format_fix', False):
                 dr = re.findall('([^=]*)=([^\s]*)', data)
                 data = ''
                 for d in dr:
-                    data += '{0}={1} '.format(d[0].replace(' ', '').replace('%', ''), d[1].strip())
+                    data += '{0}={1} '.format(d[0].replace(' ', '')
+                                              .replace('%', ''), d[1].strip())
                 data = data.strip()
             for metric in data.split():
                 try:

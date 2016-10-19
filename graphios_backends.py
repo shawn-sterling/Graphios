@@ -759,7 +759,6 @@ class influxdb1(object):
         if 'influxdb_extra_tags' in cfg:
             self.influxdb_extra_tags = ast.literal_eval(
                 cfg['influxdb_extra_tags'])
-            #print self.influxdb_extra_tags
         else:
             self.influxdb_extra_tags = {}
 

@@ -174,6 +174,10 @@ class GraphiosMetric(object):
                     self.VALID = True
 
     def check_adjust_hostname(self):
+        self.HOSTNAME = self.HOSTNAME.lower()
+        if cfg["append_domain"]:
+            if not self.HOSTNAME.endswith(cfg["append_domain"]):
+                self.HOSTNAME += '.' + cfg["append_domain"]
         if cfg["reverse_hostname"]:
             self.HOSTNAME = '.'.join(reversed(self.HOSTNAME.split('.')))
         if cfg["replace_hostname"]:
@@ -381,7 +385,15 @@ def process_log(file_name):
         if mobj:
             # break out the metric object into one object per perfdata metric
             # log.debug('perfdata:%s' % mobj.PERFDATA)
-            for metric in mobj.PERFDATA.split():
+            data = mobj.PERFDATA
+            if cfg.get('windows_format_fix', False):
+                dr = re.findall('([^=]*)=([^\s]*)', data)
+                data = ''
+                for d in dr:
+                    data += '{0}={1} '.format(d[0].replace(' ', '')
+                                              .replace('%', ''), d[1].strip())
+                data = data.strip()
+            for metric in data.split():
                 try:
                     nobj = copy.copy(mobj)
                     (nobj.LABEL, d) = metric.split('=')
@@ -391,8 +403,8 @@ def process_log(file_name):
                     nobj.UOM = re.sub("[^a-zA-Z]+", "", u)
                     processed_objects.append(nobj)
                 except:
-                    log.critical("failed to parse label: '%s' part of perf"
-                                 "string '%s'" % (metric, nobj.PERFDATA))
+                    log.critical("failed to parse metric: '%s' part of perf"
+                                 "string '%s' " % (metric, nobj.PERFDATA))
                     continue
     return processed_objects
 
@@ -521,6 +533,7 @@ def init_backends():
                       "librato",
                       "influxdb",
                       "influxdb09",
+                      "influxdb1",
                       "stdout",
                       )
     # populate the controller dict from avail + config. this assumes you named

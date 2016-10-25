@@ -337,8 +337,8 @@ configuration.
 There are 2 commands we setup in the nagios.cfg, which if you used pip or the
 rpm/deb may have already been setup for you. We need:
 
-    graphite\_perf\_service
-    graphite\_perf\_host
+    graphite_perf_service
+    graphite_perf_host
 
 Which we now need to define:
 

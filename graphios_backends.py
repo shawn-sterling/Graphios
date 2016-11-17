@@ -737,7 +737,7 @@ class influxdb1(object):
         self.timeout = 5
 
         if 'influxdb_url' in cfg:
-            self.url = cfg['influxdb_url']
+            self.urls = cfg['influxdb_url'].split(',')
         else:
             self.log.critical("Missing influxdb_url in graphios.cfg")
             sys.exit(1)
@@ -766,7 +766,7 @@ class influxdb1(object):
         tag_list = []
         for k in tags:
             if tags[k]:
-                tag = tags[k].replace(':\\\\', '')
+                tag = tags[k].replace(':', '').replace('\\', '')
                 tag_list.append('{0}={1}'.format(k, tags[k]))
         t = ','.join(tag_list)
         ts = int(timestamp) * int(self.time_precision)
@@ -805,8 +805,10 @@ class influxdb1(object):
         series_chunks = self.chunks(perfdata, self.influxdb_max_metrics)
         for chunk in series_chunks:
             series = self.format_series(chunk)
-            if not self._send(self.url, series):
-                ret = 0
+            for url in self.urls:
+                if not self._send(url, series):
+                    self.log.warning("failed to send metrics url:{0}".format(url))
+                    ret = 0
         return ret
 
     def chunks(self, l, n):
@@ -821,7 +823,7 @@ class influxdb1(object):
         else:
             self.log.debug("Connecting to InfluxDB at %s" % server)
             self.log.debug("sending: %s" % chunk)
-            req = urllib2.Request(self.url, chunk)
+            req = urllib2.Request(server, chunk)
             req.add_header('Content-Type', 'application/x-www-form-urlencoded')
             try:
                 r = urllib2.urlopen(req, timeout=self.timeout)

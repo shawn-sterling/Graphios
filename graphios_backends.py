@@ -766,6 +766,7 @@ class influxdb1(object):
         tag_list = []
         for k in tags:
             if tags[k]:
+                tag = tags[k].replace(':\\\\', '')
                 tag_list.append('{0}={1}'.format(k, tags[k]))
         t = ','.join(tag_list)
         ts = int(timestamp) * int(self.time_precision)

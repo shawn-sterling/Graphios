@@ -281,6 +281,8 @@ class carbon(object):
             self.carbon_plaintext = cfg['carbon_plaintext']
         except:
             self.carbon_plaintext = False
+            
+        self.connect()
 
     def convert_messages(self, metrics):
         """
@@ -356,13 +358,11 @@ class carbon(object):
             my_string = my_string.replace(char, self.replacement_character)
         return my_string
 
-    def send(self, metrics):
+    def connect(self):
         """
-        Connect to the Carbon server
-        Send the metrics
+        Connect to the Carbon server[s]
         """
-        ret = 0
-        sock = socket.socket()
+        self.socks = []
         servers = self.carbon_servers.split(",")
         for serv in servers:
             if ":" in serv:
@@ -376,12 +376,20 @@ class carbon(object):
                     port = 2004
             self.log.debug("Connecting to carbon at %s:%s" % (server, port))
             try:
+                sock = socket.socket()
                 sock.connect((socket.gethostbyname(server), port))
+                self.socks.append(sock)
                 self.log.debug("connected")
             except Exception, ex:
                 self.log.warning("Can't connect to carbon: %s:%s %s" % (
                                  server, port, ex))
 
+    def send(self, metrics):
+        """
+        Send the metrics
+        """
+        ret = 0
+        for sock in self.socks:
             messages = self.convert_messages(metrics)
             try:
                 for message in messages:
@@ -392,8 +400,11 @@ class carbon(object):
                 return 0
             # this only gets returned if nothing failed.
             ret += len(metrics)
-            sock.close()
         return ret
+
+    def __del(self):
+        for sock in self.socks:
+            sock.close()
 
 
 # ###########################################################

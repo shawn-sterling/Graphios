@@ -503,12 +503,15 @@ def check_skip_file(file_name, file_dir):
         return True
     elif re.match('^_', file_name):
         return True
-
-    if os.stat(file_dir)[6] == 0:
-        # file was 0 bytes
-        handle_file(file_dir, 0)
-        return True
-    if os.path.isdir(file_dir):
+    try:
+        if os.stat(file_dir)[6] == 0:
+            # file was 0 bytes
+            handle_file(file_dir, 0)
+            return True
+        if os.path.isdir(file_dir):
+            return True
+    except Exception as ex:
+        log.critical(ex)
         return True
     return False
 

@@ -96,7 +96,7 @@ parser.add_option("--log-file", dest="log_file",
                   help="file to log to")
 parser.add_option("--backend", dest="backend", default="stdout",
                   help="sets which storage backend to use")
-parser.add_option("--config_file", dest="config_file", default="",
+parser.add_option("--config", dest="config", default="",
                   help="set custom config file location")
 parser.add_option("--test", action="store_true", dest="test", default="",
                   help="Turns on test mode, which won't send to backends")
